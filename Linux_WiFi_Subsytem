@@ -1,0 +1,127 @@
+Linux Debugging wireless Modules : The Linux foundation
+Overview  Linux WiFi  basic concepts - Chips and stack 
+
+Category:
+Full mac /soft mac
+FW
+Interfaces
+BT coex
+
+MLME resides on chips or FW running in the HW - Full MAC
+MLME resides on linux mac80211 layer  - Soft MAC
+
+Both of them have FW blobs provided to you by vendor(QCA, Broadcomm, Marvel) may and may not be upstream 
+FW blobs should be load as late as possible, some on during probe wifi drivers
+Most chips load FW, even Soft MAC loads FW (thin FW layer) 
+/lib/firmware
+
+Interfaces:
+Most drivers have multiple h/w interfaces, Majority uses
+-SDIO
+-USB
+-PCIE
+-AXI
+
+Pins :
+UART
+BT coex
+
+
+Arch :
+userspace (utilities, network manager, supplicant, debugfs, apps)
+|
+kernal(nl80211				------->relates to Syscall interface
+	   cfg80211              ------>relates to Syscall Interfaces & Sockets
+	   mac80211              ------> relates to protocols
+	   Either Soft MAC or Full mac Interface drivers (Ath10k)---->relates to net_dev
+	   USB, PCIE, SDIO, AXI)
+|
+Hardware(Bus Interface HW,
+		WiFi chip)
+
+
+mac80211:
+SDIO, PCIE drivers to get stuffs to and from from the chips
+Have an abstraction layer
+->ieee80211_ops 
+->ieee80211_allow_hw
+->ieee80211_register_hw
+
+
+cfg80211:
+replaces wext
+All drivers uses this
+Ex : scan , regulatory domains, rate table array
+
+
+nl802111:
+basic tools talk to nl80211 to talk to cfg80211 and mqc80211
+Userspace interface to cgf80211
+Uses netlink socket
+replaces wext along with cfg80211
+
+Userspace mgmt:
+iw uses netlink socket
+iwconfig, ifconfig, iwpriv (Depriciated, uses ioctl we do still use this)
+
+
+
+wpa_supplicant/hostapd :
+handles encryption stuffs and all encryption protocols
+some chips offload this into there FW drivers & all needs to setup all this correct)
+
+
+Data :
+No differnce talking to ethernet or WiFi devices
+opens up an app -> sets the sockets -> TCP/IP stack
+Data path (All skb's)
+
+
+
+
+cat vendor 
+0x271(Atheros)
+
+cat device
+0x301
+
+
+Looks driver code :
+hif.h will have device id 
+sdio.c 
+
+or check dmesg or maybe it will say that didn't able to load the firmware5.bin
+
+
+
+Bad results:
+Is it plugged in correctly?
+Is it powered?
+Does it announce on bus?
+Does it loads FW ?
+If it fails to load wifi interface wlan0?
+Functionality failures
+Performance failures
+
+Names of the firmware is generally hardcoded in device drivers. 
+Blobs that are loaded :
+1)Actual FW
+2)Board data files inclues Antena power adjustment , regulatory compliance
+
+If you want to debug lower layer it's better to remove the Network manager
+
+
+Debugging:
+check vendorId, deviceId and try checkin the driver code if it exist ir not
+lspvi -nn
+lsusb
+sdio- > uses sysfs
+cat /sys/bus/sdio/devices/mmc00:0001:1
+
+
+1)kconfig debuging options -> by default it is disabled 
+Ex : ath10kl_debug, ath10kl_tracing
+brcmfmac : CONFIG_BRCMDBG
+
+2)dmesg - >kernal logs
+echo 0x00140000 > /sys/module/ath10kl_core/paramentes/debugmask
